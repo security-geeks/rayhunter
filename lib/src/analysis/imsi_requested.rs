@@ -1,12 +1,10 @@
-use std::borrow::Cow;
-use std::collections::BTreeSet;
-
 use chrono::{DateTime, FixedOffset};
+use std::collections::BTreeSet;
 
 use pycrate_rs::nas::NASMessage;
 use pycrate_rs::nas::emm::EMMMessage;
 
-use super::analyzer::{Analyzer, Event, EventType};
+use super::analyzer::{Analyzer, AnalyzerMetadata, Event, EventType};
 use super::information_element::{InformationElement, LteInformationElement};
 use crate::plmn::{PACKED_BCD_LEN, decode_packed_bcd};
 use log::{debug, error};
@@ -14,11 +12,10 @@ use log::{debug, error};
 use pycrate_rs::nas::generated::emm::emm_attach_reject::EMMCauseEMMCause as AttachRejectEMMCause;
 use pycrate_rs::nas::generated::emm::emm_attach_request::TAI;
 use telcom_parser::lte_rrc::{BCCH_DL_SCH_MessageType, BCCH_DL_SCH_MessageType_c1};
-use telcom_parser::lte_rrc::{MCC_MNC_Digit, PLMN_Identity, PLMN_IdentityList};
 use telcom_parser::lte_rrc::{
-    /* DL_DCCH_MessageType, DL_DCCH_MessageType_c1,*/ UL_CCCH_MessageType,
-    UL_CCCH_MessageType_c1,
+    DL_DCCH_MessageType, DL_DCCH_MessageType_c1, UL_CCCH_MessageType, UL_CCCH_MessageType_c1,
 };
+use telcom_parser::lte_rrc::{MCC_MNC_Digit, PLMN_Identity, PLMN_IdentityList};
 
 const TIMEOUT_THRESHHOLD: usize = 50;
 
@@ -209,18 +206,14 @@ impl ImsiRequestedAnalyzer {
 }
 
 impl Analyzer for ImsiRequestedAnalyzer {
-    fn get_name(&self) -> Cow<'_, str> {
-        Cow::from("Identity (IMSI or IMEI) requested in suspicious manner")
-    }
-
-    fn get_description(&self) -> Cow<'_, str> {
-        Cow::from(
-            "Tests whether the ME sends an Identity Request NAS message without either an associated attach request or auth accept message",
-        )
-    }
-
-    fn get_version(&self) -> u32 {
-        5
+    fn metadata() -> AnalyzerMetadata {
+        AnalyzerMetadata {
+            key: "imsi_requested".into(),
+            default_enabled: true,
+            name: "IMSI Requested".into(),
+            description: "Tests whether the ME sends an Identity Request NAS message without either an associated attach request or auth accept message".into(),
+            version: 5,
+        }
     }
 
     fn analyze_information_element(
@@ -290,9 +283,6 @@ impl Analyzer for ImsiRequestedAnalyzer {
                     _ => {}
                 },
 
-                // This causes two messages in the event of a false positive when we should always get an attach reject anyway so
-                // I'm commentingit out until I figure out a smarter way to deal with it.
-                /*
                 LteInformationElement::DlDcch(rrc_payload) => {
                     if let DL_DCCH_MessageType::C1(DL_DCCH_MessageType_c1::RrcConnectionRelease(
                         _,
@@ -301,7 +291,6 @@ impl Analyzer for ImsiRequestedAnalyzer {
                         self.transition(State::Disconnect, packet_num)
                     }
                 }
-                */
                 _ => {}
             }
         };
